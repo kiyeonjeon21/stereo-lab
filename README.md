@@ -22,6 +22,11 @@
 | `#07-animation` | 스켈레탈 애니메이션(Soldier). AnimationMixer + 클립 crossfade 버튼 (북극성) |
 | `#08-performance` | 작게(gltf-transform 압축) + 빠르게(three-mesh-bvh 레이캐스트). hover 피킹 |
 | `#09-r3f` | 06을 R3F+drei로 재구성 — 같은 씬, 선언형 추상화 (프레임워크 설계자 시점) |
+| `#10-fps` | 걷는 맵: collision-world.glb를 1인칭으로(WASD+점프). three Octree로 캡슐-지형 충돌 |
+| `#11-bloom` | 포스트프로세싱: EffectComposer + UnrealBloomPass로 발광. 패스 체인 |
+| `#12-shadows` | 그림자: DirectionalLight shadow map. 빛 시점 깊이 렌더 + 토글 |
+| `#13-glass` | 유리/굴절: DispersionTest의 transmission·IOR·dispersion. 배경을 굴절 |
+| `#14-birds` | 모프 애니: Flamingo/Parrot/Stork 군집 비행. skeletal(07)과 대비되는 vertex morph |
 
 `src/lib/building.ts`의 `buildBuilding()`이 브라우저 station과 Node 생성기 양쪽에서
 **같은 geometry 로직**을 공유한다.

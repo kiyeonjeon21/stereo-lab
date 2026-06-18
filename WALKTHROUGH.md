@@ -27,11 +27,17 @@ you've got the concept.
 - [Station 07 — character animation](#station-07--character-animation)
 - [Station 08 — performance (compress + BVH)](#station-08--performance-compress--bvh)
 - [Station 09 — abstraction (React Three Fiber)](#station-09--abstraction-react-three-fiber)
+- [Station 10 — walkable level (FPS + collision)](#station-10--walkable-level-fps--collision)
+- [Station 11 — postprocessing (bloom)](#station-11--postprocessing-bloom)
+- [Station 12 — shadows](#station-12--shadows)
+- [Station 13 — transmission / glass](#station-13--transmission--glass)
+- [Station 14 — morph-target flock](#station-14--morph-target-flock)
 - [How to study](#how-to-study)
 
 > Stations 00–05 are the **pipeline fundamentals** (geometry → I/O → render → shader →
 > motion → physics) on toy data. Stations 06–09 are the **advanced layer**: real
-> textured/animated models and deeper tooling.
+> textured/animated models and deeper tooling. Stations 10–14 are the **fun layer**: a
+> walkable map and rendering effects (bloom, shadows, glass, flocking).
 
 ---
 
@@ -727,6 +733,137 @@ controls, and lighting. Swap `<RoomEnv/>` for drei's one-liner `<Environment pre
 
 ---
 
+## Station 10 — walkable level (FPS + collision)
+
+**Concept:** a real "map" you walk through in first person. **Graduation question:**
+station 08 used a BVH to speed up *raycasts*; what does the Octree here speed up?
+(Capsule-vs-world *collision* — same idea, partition the level's triangles so you only
+test the few near the player.)
+
+This is self-contained (first-person needs its own pointer-lock camera, so it doesn't use
+`createViewer`). The collision core is three's `Octree` + `Capsule`
+(`src/stations/10-fps.ts`):
+
+```ts
+worldOctree.fromGraphNode(gltf.scene);                       // level mesh → Octree
+const playerCollider = new Capsule(start, end, 0.35);         // player = a capsule
+// each frame, sub-stepped ×5:
+const result = worldOctree.capsuleIntersect(playerCollider); // closest contact
+if (result) playerCollider.translate(result.normal.multiplyScalar(result.depth)); // push out
+```
+
+**Reading it:** the player is a vertical **capsule**; the level is baked into an **Octree**
+(a tree of boxes over the triangles). Each frame `capsuleIntersect` returns the contact
+normal + penetration depth, and we push the capsule out along the normal, then snap the
+camera to it. Movement runs **5 sub-steps per frame** (`STEPS_PER_FRAME`) so a fast move
+can't tunnel through a thin wall in one big jump — the same fixed-substep wisdom as the
+physics station. Look is `PointerLock` (click to capture the mouse); WASD adds velocity
+along the camera's flattened forward/side vectors; Space sets upward velocity when on the
+floor.
+
+**Try it:** click, then WASD + mouse to walk the level and Space to jump up the stairs.
+
+---
+
+## Station 11 — postprocessing (bloom)
+
+**Concept:** the picture isn't finished when the scene is drawn — you can run it through
+image filters. **Graduation question:** why is postprocessing a *chain of passes*?
+
+`createViewer` normally calls `renderer.render()`; here we hand it a `renderOverride` so an
+`EffectComposer` drives the draw instead (`src/stations/11-bloom.ts`):
+
+```ts
+const viewer = createViewer(container, { renderOverride: () => composer?.render() });
+composer = new EffectComposer(viewer.renderer);
+composer.addPass(new RenderPass(viewer.scene, viewer.camera)); // 1. draw scene → texture
+composer.addPass(new UnrealBloomPass(size, 0.9, 0.5, 0.0));     // 2. bright→blur→add
+composer.addPass(new OutputPass());                            // 3. tonemap → screen
+```
+
+**Reading it — the answer:** each pass renders into an offscreen texture that the next pass
+reads. `RenderPass` draws the scene to a texture; `UnrealBloomPass` extracts the bright
+pixels, blurs them, and adds them back (that's the glow); `OutputPass` tone-maps to the
+screen. Glow only appears where `emissiveIntensity` pushes pixels bright enough for the
+threshold to catch. (This is the one place we extended `viewer.ts` — a `renderOverride`
+hook so a station can replace the draw call.)
+
+**Try it:** drag the bloom slider; lower `emissiveIntensity` on the shapes and watch the
+glow fade.
+
+---
+
+## Station 12 — shadows
+
+**Concept:** a shadow map is the scene rendered *from the light's viewpoint*, storing depth.
+**Graduation question:** why are shadows an extra render pass?
+
+```ts
+viewer.renderer.shadowMap.enabled = true;
+const light = new THREE.DirectionalLight(0xffffff, 3);
+light.castShadow = true;
+light.shadow.mapSize.set(2048, 2048);
+Object.assign(light.shadow.camera, { left: -10, right: 10, top: 10, bottom: -10, near: 0.5, far: 40 });
+mesh.castShadow = true;   ground.receiveShadow = true;
+```
+
+**Reading it — the answer:** to know if a point is shadowed, three renders the scene once
+*from the light* into a depth texture (the shadow map). Then while shading the ground, each
+pixel compares its distance-to-light against that stored depth: farther → something blocks
+it → in shadow. So shadows literally cost a second render of all casters. The trade-offs fall
+out of that: `mapSize` is the shadow texture resolution (sharper but costlier), the
+`shadow.camera` ortho box must tightly wrap the scene (too big → blocky shadows), and
+`shadow.bias` nudges the comparison to avoid self-shadow acne.
+
+**Try it:** toggle "cast shadows"; shrink `mapSize` to `256` to see the resolution trade-off.
+
+---
+
+## Station 13 — transmission / glass
+
+**Concept:** *transmission* lets light pass through and bend (refract); *dispersion* splits it
+by wavelength (rainbow edges). **Graduation question:** why does glass need an environment +
+visible background to look like glass?
+
+```ts
+viewer.scene.environment = envTex;   // reflections + what gets refracted
+viewer.scene.background = envTex;     // so the refraction is actually visible
+// DispersionTest.glb already uses MeshPhysicalMaterial: transmission + ior + dispersion
+```
+
+**Reading it — the answer:** unlike `opacity` (which just fades a surface toward
+transparent), `transmission` simulates light traveling *through* the material and bending by
+its `ior`. But "bending light" only shows up as distortion of whatever is *behind* the
+glass — so with no environment/background there's nothing to refract and it looks flat. We
+reuse station 06's `RoomEnvironment` for both the reflections and the refracted backdrop.
+
+**Try it:** comment out `scene.background` and notice the refraction loses its reference;
+spin the model to watch the dispersion fringes shift.
+
+---
+
+## Station 14 — morph-target flock
+
+**Concept:** another way to animate a mesh — no skeleton. **Graduation question:** how do you
+flap a wing with no bones? (Blend the vertices toward a stored target shape.)
+
+```ts
+const mixer = new THREE.AnimationMixer(obj);
+mixer.clipAction(gltf.animations[0]).play();  // a morph-target (blend-shape) clip
+viewer.onFrame((t, delta) => { mixer.update(delta); /* + fly in a circle */ });
+```
+
+**Reading it:** station 07 rotated *bones* to deform the soldier. These birds have no
+skeleton — the flap clip drives **morph target influences**, blending each vertex between
+its rest position and a stored "wings-up" target. The driving code is the *same*
+`AnimationMixer` + `mixer.update(delta)` as station 07; only the underlying deformation
+differs (vertex blend vs. bone transform). We load three species, clone each into a small
+flock, and fly them on circular orbits.
+
+**Try it:** change the orbit `radius`/`speed`/count, or `mixer.timeScale` to slow the flap.
+
+---
+
 ## How to study
 
 | Station | Graduation question |
@@ -741,6 +878,11 @@ controls, and lighting. Swap `<RoomEnv/>` for drei's one-liner `<Environment pre
 | 07 animation | How does `mixer.update(delta)` mesh with the render loop? |
 | 08 performance | Why does a BVH make raycasting a dense mesh ~100× faster? |
 | 09 r3f | How does imperative three.js map onto a declarative JSX tree? |
+| 10 fps | What does the Octree speed up (vs the BVH in 08)? |
+| 11 bloom | Why is postprocessing a chain of passes? |
+| 12 shadows | Why are shadows an extra render pass? |
+| 13 glass | Why does glass need a visible background to look like glass? |
+| 14 birds | How do you flap a wing with no skeleton? |
 
 Run it:
 
