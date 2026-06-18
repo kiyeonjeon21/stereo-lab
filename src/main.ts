@@ -16,6 +16,7 @@ const STATIONS: { id: string; label: string; load: () => Promise<{ mount: MountF
   { id: '09-r3f', label: '09 · r3f', load: () => import('./stations/09-r3f') },
   { id: '10-fps', label: '10 · fps', load: () => import('./stations/10-fps') },
   { id: '11-bloom', label: '11 · bloom', load: () => import('./stations/11-bloom') },
+  { id: '12-shadows', label: '12 · shadows', load: () => import('./stations/12-shadows') },
 ];
 
 const app = document.getElementById('app') as HTMLElement;
