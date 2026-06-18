@@ -18,6 +18,10 @@
 | `#03-sdf` | 수학을 눈으로: 메시 0개, 프래그먼트 셰이더가 SDF 레이마칭으로 씬 생성. 드래그로 궤도 회전 |
 | `#04-motion` | 모션: Theatre.js 시트/오브젝트를 three.js 메시에 연결. Studio 패널에서 키프레임·스크럽 (북극성) |
 | `#05-physics` | 물리: Rapier(Rust→WASM). fixed-timestep으로 물리 스텝과 렌더 스텝 분리. 클릭으로 박스 떨어뜨리기 |
+| `#06-pbr` | 진짜 PBR 모델(DamagedHelmet) + 환경맵(IBL) + ACES 톤매핑. 노출 슬라이더 |
+| `#07-animation` | 스켈레탈 애니메이션(Soldier). AnimationMixer + 클립 crossfade 버튼 (북극성) |
+| `#08-performance` | 작게(gltf-transform 압축) + 빠르게(three-mesh-bvh 레이캐스트). hover 피킹 |
+| `#09-r3f` | 06을 R3F+drei로 재구성 — 같은 씬, 선언형 추상화 (프레임워크 설계자 시점) |
 
 `src/lib/building.ts`의 `buildBuilding()`이 브라우저 station과 Node 생성기 양쪽에서
 **같은 geometry 로직**을 공유한다.
@@ -36,6 +40,7 @@ npm run dev         # http://localhost:5173 — 상단 네비로 station 전환
 
 ```bash
 npm run build       # tsc 타입체크 + vite 프로덕션 빌드
+npm run optimize    # (station 08) gltf-transform으로 DamagedHelmet 압축 + 용량 비교
 npx gltf-transform inspect public/models/building.glb   # (보너스) 생성물 메타 확인
 ```
 

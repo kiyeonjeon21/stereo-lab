@@ -23,7 +23,15 @@ you've got the concept.
 - [Station 03 — SDF raymarching](#station-03--sdf-raymarching)
 - [Station 04 — motion (Theatre.js)](#station-04--motion-theatrejs)
 - [Station 05 — physics (Rapier)](#station-05--physics-rapier)
+- [Station 06 — PBR + image-based lighting](#station-06--pbr--image-based-lighting)
+- [Station 07 — character animation](#station-07--character-animation)
+- [Station 08 — performance (compress + BVH)](#station-08--performance-compress--bvh)
+- [Station 09 — abstraction (React Three Fiber)](#station-09--abstraction-react-three-fiber)
 - [How to study](#how-to-study)
+
+> Stations 00–05 are the **pipeline fundamentals** (geometry → I/O → render → shader →
+> motion → physics) on toy data. Stations 06–09 are the **advanced layer**: real
+> textured/animated models and deeper tooling.
 
 ---
 
@@ -565,6 +573,160 @@ in the loop. Click the canvas to drop more boxes.
 
 ---
 
+## Station 06 — PBR + image-based lighting
+
+**Concept:** a real model carries *textures* (base color, normal, metalness/roughness,
+emissive), and shiny surfaces need an *environment* to reflect. **Graduation question:**
+why does PBR *need* an environment map?
+
+The toy `building.glb` was positions only. `DamagedHelmet.glb` is a full PBR asset. Loading
+it is the same `GLTFLoader` call — the textures ride along inside the `.glb`. The new part
+is lighting (`src/stations/06-pbr.ts:18`):
+
+```ts
+viewer.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const pmrem = new THREE.PMREMGenerator(viewer.renderer);
+const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+viewer.scene.environment = envTex;
+```
+
+**Reading it:** metal and glossy surfaces show almost entirely *reflections* — with nothing
+to reflect, metal renders flat black. `RoomEnvironment` is a procedural room (no HDR file
+needed); `PMREMGenerator` pre-filters it into the blurred mip chain that PBR materials
+sample for reflections. `scene.environment` applies it to every material at once.
+`ACESFilmicToneMapping` then maps the bright HDR reflections into displayable range (the
+exposure slider shows it compressing highlights). **That's the answer:** no environment →
+no reflections → PBR metal looks dead.
+
+**Try it:** drag the exposure slider; comment out the `scene.environment` line and watch the
+helmet go matte/black.
+
+---
+
+## Station 07 — character animation
+
+**Concept:** skeletal animation = a bone hierarchy + baked clips over time. **Graduation
+question:** how does `mixer.update(delta)` mesh with the render loop? (Same time-driven idea
+as station 00.)
+
+`Soldier.glb` ships clips named `Idle / Run / Walk / TPose`. The core
+(`src/stations/07-animation.ts`):
+
+```ts
+const mixer = new THREE.AnimationMixer(root);
+for (const clip of gltf.animations) actions[clip.name] = mixer.clipAction(clip);
+actions['Idle'].play();
+viewer.onFrame((_, delta) => mixer.update(delta));   // advance by real frame time
+```
+
+**Reading it:** an `AnimationMixer` plays `AnimationClip`s on a model; each clip becomes an
+`AnimationAction` you can play/stop/weight. The bridge to the screen is the last line —
+`mixer.update(delta)` advances the animation by the seconds elapsed this frame, exactly the
+time-driven principle from station 00 (and the mirror of station 05's fixed step). Switching
+clips uses a crossfade so motion blends instead of snapping:
+
+```ts
+next.reset().setEffectiveWeight(1).play();
+current.crossFadeTo(next, 0.3, false);   // blend out→in over 0.3s
+```
+
+**Try it:** click Idle / Walk / Run and watch the crossfade. Change `0.3` to `0` for an
+instant (jarring) cut.
+
+---
+
+## Station 08 — performance (compress + BVH)
+
+**Concept:** two performance levers — make the file *small* (gltf-transform) and make
+raycasting *fast* (three-mesh-bvh). **Graduation question:** why does a BVH make raycasting a
+dense mesh ~100× faster?
+
+**Small** — `scripts/optimize-glb.ts` (run via `npm run optimize`) applies geometry-only
+transforms with no extra native deps:
+
+```ts
+const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+const doc = await io.read(IN);
+await doc.transform(dedup(), prune(), weld(), quantize());
+await io.write(OUT, doc);
+```
+
+`quantize()` stores positions/normals/UVs at lower bit depth (≈32% smaller *geometry* here).
+The script also logs that the *file total* barely moves — because this model is mostly
+texture bytes. The real lesson: **profile before optimizing.** (`registerExtensions` matters:
+without it `quantize`'s `KHR_mesh_quantization` is silently dropped on write.)
+
+**Fast** — three-mesh-bvh patches three to use a Bounding Volume Hierarchy
+(`src/stations/08-performance.ts:13`):
+
+```ts
+THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+THREE.Mesh.prototype.raycast = acceleratedRaycast;
+// …later, per mesh:
+mesh.geometry.computeBoundsTree();
+```
+
+**Reading it — the answer:** a naïve raycast tests *every* triangle (O(n)). A BVH is a tree
+of nested bounding boxes; the ray skips an entire branch the moment it misses that branch's
+box, so it only descends toward triangles it could actually hit (≈O(log n)). The station
+fires 5,000 rays at a 15k-triangle helmet in ~11ms and highlights the hovered face live; tick
+"show BVH boxes" to *see* the spatial partition the ray is pruning against.
+
+**Try it:** toggle the BVH boxes; hover to move the marker; run `npm run optimize` and read
+the geometry-vs-total size breakdown.
+
+---
+
+## Station 09 — abstraction (React Three Fiber)
+
+**Concept:** R3F isn't a rival to three.js — it's three.js expressed as a React component
+tree, and drei is a kit of ready-made helpers. **Graduation question:** how does imperative
+three.js map onto declarative JSX? (Read this beside `06-pbr.ts` — same scene, a fraction of
+the wiring.)
+
+The whole scene is a tree (`src/stations/09-r3f.tsx`):
+
+```tsx
+function Helmet() {
+  const { scene } = useGLTF('models/DamagedHelmet.glb');  // replaces GLTFLoader + onload
+  return <primitive object={scene} />;
+}
+
+function Scene() {
+  return (
+    <Canvas camera={{ position: [0, 0.2, 3.2], fov: 50 }} gl={{ toneMapping: THREE.ACESFilmicToneMapping }}>
+      <color attach="background" args={['#0b0d10']} />
+      <RoomEnv />
+      <OrbitControls enableDamping />     {/* drei: no manual controls wiring */}
+      <Suspense fallback={null}><Helmet /></Suspense>
+    </Canvas>
+  );
+}
+```
+
+**Reading it:** every imperative step in station 06 becomes a node here — `useGLTF` replaces
+`GLTFLoader` + the `onload` callback + traversal; `<OrbitControls/>` replaces constructing and
+`.update()`-ing controls; `<primitive object={...}/>` mounts an existing three object into the
+tree. And the router contract drops in cleanly (`src/stations/09-r3f.tsx`):
+
+```tsx
+export function mount(container: HTMLElement) {
+  const root = createRoot(container);
+  root.render(<Scene />);
+  return () => root.unmount();   // the same mount→cleanup contract
+}
+```
+
+As a framework-builder, the value here is seeing *what a good abstraction keeps vs. hides*:
+drei exposes scene primitives directly but packages the boilerplate (controls, loaders,
+environments) as declarative nodes.
+
+**Try it:** diff `09-r3f.tsx` against `06-pbr.ts` and count the lines each spends on loading,
+controls, and lighting. Swap `<RoomEnv/>` for drei's one-liner `<Environment preset="city" />`
+(needs network) to see how much further the abstraction goes.
+
+---
+
 ## How to study
 
 | Station | Graduation question |
@@ -575,6 +737,10 @@ in the loop. Click the canvas to drop more boxes.
 | 03 sdf | Why is it safe to step by "distance to the nearest surface" each iteration? |
 | 04 motion | What one function connects the timeline to the cube? |
 | 05 physics | Why step physics in fixed 1/60s chunks instead of once per frame? |
+| 06 pbr | Why does PBR *need* an environment map? |
+| 07 animation | How does `mixer.update(delta)` mesh with the render loop? |
+| 08 performance | Why does a BVH make raycasting a dense mesh ~100× faster? |
+| 09 r3f | How does imperative three.js map onto a declarative JSX tree? |
 
 Run it:
 
