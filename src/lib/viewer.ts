@@ -17,7 +17,10 @@ export interface Viewer {
  * + automatic resize. Returns a `dispose()` that fully unwinds the loop,
  * listeners, and GPU context (the router calls it on station switch).
  */
-export function createViewer(container: HTMLElement, opts: { background?: number } = {}): Viewer {
+export function createViewer(
+  container: HTMLElement,
+  opts: { background?: number; renderOverride?: () => void } = {},
+): Viewer {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(opts.background ?? 0x0b0d10);
 
@@ -50,7 +53,9 @@ export function createViewer(container: HTMLElement, opts: { background?: number
     const elapsed = clock.getElapsedTime();
     for (const cb of callbacks) cb(elapsed, delta);
     controls.update();
-    renderer.render(scene, camera);
+    // a station doing postprocessing can replace the draw call (e.g. composer.render())
+    if (opts.renderOverride) opts.renderOverride();
+    else renderer.render(scene, camera);
   }
   loop();
 
