@@ -21,11 +21,24 @@ export function mount(container: HTMLElement) {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.VSMShadowMap; // soft shadows that hold up over a big level
   container.appendChild(renderer.domElement);
 
   scene.add(new THREE.HemisphereLight(0xffffff, 0x335577, 1.2));
   const sun = new THREE.DirectionalLight(0xffffff, 2.5);
   sun.position.set(-5, 25, -1);
+  sun.castShadow = true;
+  // the shadow camera (orthographic) must wrap the whole level so nothing clips out
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = 80;
+  sun.shadow.camera.left = -30;
+  sun.shadow.camera.right = 30;
+  sun.shadow.camera.top = 30;
+  sun.shadow.camera.bottom = -30;
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.bias = -0.00006;
+  sun.shadow.radius = 4;
   scene.add(sun);
 
   // physics world + player
@@ -38,7 +51,11 @@ export function mount(container: HTMLElement) {
   new GLTFLoader().load('models/collision-world.glb', (gltf) => {
     scene.add(gltf.scene);
     worldOctree.fromGraphNode(gltf.scene); // build the collision Octree from the level mesh
-    console.log('[10-fps] level + octree ready');
+    gltf.scene.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (mesh.isMesh) { mesh.castShadow = true; mesh.receiveShadow = true; } // walls cast + catch shadows
+    });
+    console.log('[10-fps] level + octree ready (shadows on)');
   });
 
   // --- input ---
