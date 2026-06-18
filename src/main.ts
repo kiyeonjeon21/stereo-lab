@@ -10,6 +10,7 @@ const STATIONS: { id: string; label: string; load: () => Promise<{ mount: MountF
   { id: '03-sdf', label: '03 · sdf', load: () => import('./stations/03-sdf') },
   { id: '04-motion', label: '04 · motion', load: () => import('./stations/04-motion') },
   { id: '05-physics', label: '05 · physics', load: () => import('./stations/05-physics') },
+  { id: '06-pbr', label: '06 · pbr', load: () => import('./stations/06-pbr') },
 ];
 
 const app = document.getElementById('app') as HTMLElement;
