@@ -22,6 +22,8 @@
 `src/lib/building.ts`의 `buildBuilding()`이 브라우저 station과 Node 생성기 양쪽에서
 **같은 geometry 로직**을 공유한다.
 
+> 각 station의 코드를 한 줄씩 근거로 풀어주는 학습 문서는 **[WALKTHROUGH.md](./WALKTHROUGH.md)** 참고.
+
 ## 실행
 
 ```bash
