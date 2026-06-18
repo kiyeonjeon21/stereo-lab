@@ -1,67 +1,83 @@
 # stereo-lab
 
-3D 모션 프레임워크를 만들기 위한 핵심 개념들을 **직접 코드로 만져서** 체득하는 실습장.
-단일 Vite 앱 안에서 URL hash로 station을 전환한다.
+A hands-on playground for learning the core concepts behind a 3D motion framework
+**by touching the code directly**. One Vite app; stations switch via the URL hash.
 
-## 1순위 체인 (현재 작동)
+**▶ Live demo: https://kiyeonjeon21.github.io/stereo-lab/** — 15 interactive stations, no install.
 
-> **절차적 생성 → 포맷/IO → 렌더**
-> manifold-3d (box·boolean·extrude) → gltf-transform (.glb export) → three.js (load·render)
+<p align="center">
+  <img src="docs/screenshots/06-pbr.png" width="32%" alt="PBR helmet with image-based lighting" />
+  <img src="docs/screenshots/10-fps.png" width="32%" alt="walkable level with collision + shadows" />
+  <img src="docs/screenshots/14-birds.png" width="32%" alt="morph-target bird flock" />
+  <br />
+  <img src="docs/screenshots/03-sdf.png" width="32%" alt="SDF raymarching shader" />
+  <img src="docs/screenshots/11-bloom.png" width="32%" alt="bloom postprocessing" />
+  <img src="docs/screenshots/13-glass.png" width="32%" alt="glass / transmission material" />
+</p>
+<p align="center"><sub>PBR · walkable map · morph flock · SDF raymarching · bloom · glass</sub></p>
 
-같은 "건물 한 채"를 세 가지 방식으로 만지는 게 핵심:
+## Stations
 
-| station | 무엇을 click 시키나 |
+The lab follows the pipeline of building 3D things. Stations 00–05 are the
+**fundamentals** (toy data); 06–09 the **advanced layer** (real models, deeper tooling);
+10–14 the **fun layer** (a walkable map + rendering effects).
+
+> Foundation chain: **procedural generation → format/IO → render**
+> manifold-3d (box·boolean·extrude) → gltf-transform (.glb export) → three.js (load·render).
+> The same little "building" is touched three ways across 01–02.
+
+| station | what it makes click |
 | --- | --- |
-| `#00-render-loop` | 렌더 루프가 어떻게 도는가 — 회전 큐브 |
-| `#01-manifold` | 코드=모델: WASM 커널이 vertex/index 배열을 뱉고, 렌더러는 그걸 받을 뿐 |
-| `#02-gltf` | I/O 레이어: 같은 건물을 .glb로 굽고 다시 로드. 콘솔에 glTF JSON 트리 출력 |
-| `#03-sdf` | 수학을 눈으로: 메시 0개, 프래그먼트 셰이더가 SDF 레이마칭으로 씬 생성. 드래그로 궤도 회전 |
-| `#04-motion` | 모션: Theatre.js 시트/오브젝트를 three.js 메시에 연결. Studio 패널에서 키프레임·스크럽 (북극성) |
-| `#05-physics` | 물리: Rapier(Rust→WASM). fixed-timestep으로 물리 스텝과 렌더 스텝 분리. 클릭으로 박스 떨어뜨리기 |
-| `#06-pbr` | 진짜 PBR 모델(DamagedHelmet) + 환경맵(IBL) + ACES 톤매핑. 노출 슬라이더 |
-| `#07-animation` | 스켈레탈 애니메이션(Soldier). AnimationMixer + 클립 crossfade 버튼 (북극성) |
-| `#08-performance` | 작게(gltf-transform 압축) + 빠르게(three-mesh-bvh 레이캐스트). hover 피킹 |
-| `#09-r3f` | 06을 R3F+drei로 재구성 — 같은 씬, 선언형 추상화 (프레임워크 설계자 시점) |
-| `#10-fps` | 걷는 맵: collision-world.glb를 1인칭으로(WASD+점프). three Octree로 캡슐-지형 충돌 |
-| `#11-bloom` | 포스트프로세싱: EffectComposer + UnrealBloomPass로 발광. 패스 체인 |
-| `#12-shadows` | 그림자: DirectionalLight shadow map. 빛 시점 깊이 렌더 + 토글 |
-| `#13-glass` | 유리/굴절: DispersionTest의 transmission·IOR·dispersion. 배경을 굴절 |
-| `#14-birds` | 모프 애니: Flamingo/Parrot/Stork 군집 비행. skeletal(07)과 대비되는 vertex morph |
+| `#00-render-loop` | how the render loop turns — a spinning cube |
+| `#01-manifold` | code = model: a WASM kernel emits vertex/index arrays; the renderer just consumes them |
+| `#02-gltf` | the I/O layer: bake the same building to a .glb and load it back. glTF JSON tree in the console |
+| `#03-sdf` | see the math: zero meshes — a fragment shader builds the scene via SDF raymarching. Drag to orbit |
+| `#04-motion` | motion: wire a Theatre.js sheet/object onto a three.js mesh. Keyframe & scrub in the Studio panel |
+| `#05-physics` | physics: Rapier (Rust→WASM). Fixed-timestep decouples the physics step from the render step. Click to drop boxes |
+| `#06-pbr` | a real PBR model (DamagedHelmet) + environment map (IBL) + ACES tone mapping. Exposure slider |
+| `#07-animation` | skeletal animation (Soldier). AnimationMixer + clip crossfade buttons |
+| `#08-performance` | make it small (gltf-transform compression) + fast (three-mesh-bvh raycast). Hover picking |
+| `#09-r3f` | station 06 rebuilt with R3F + drei — same scene, declarative abstraction (framework-author's view) |
+| `#10-fps` | walkable map: collision-world.glb in first person (WASD + jump), capsule-vs-level collision via three's Octree, with shadows |
+| `#11-bloom` | postprocessing: glow via EffectComposer + UnrealBloomPass. A pass chain |
+| `#12-shadows` | shadows: a DirectionalLight shadow map (depth rendered from the light's view) + toggle |
+| `#13-glass` | transmission/refraction: DispersionTest's transmission·IOR·dispersion, refracting the background |
+| `#14-birds` | morph animation: a Flamingo/Parrot/Stork flock — vertex morph contrasted with skeletal (07) |
 
-`src/lib/building.ts`의 `buildBuilding()`이 브라우저 station과 Node 생성기 양쪽에서
-**같은 geometry 로직**을 공유한다.
+`buildBuilding()` in `src/lib/building.ts` shares the **same geometry logic** between the
+browser station and the Node generator.
 
-> 각 station의 코드를 한 줄씩 근거로 풀어주는 학습 문서는 **[WALKTHROUGH.md](./WALKTHROUGH.md)** 참고.
+> For a line-by-line, code-grounded explanation of every station, see **[WALKTHROUGH.md](./WALKTHROUGH.md)**.
 
-## 실행
+## Run
 
 ```bash
 npm install
-npm run gen:glb     # manifold → gltf-transform → public/models/building.glb 생성
-npm run dev         # http://localhost:5173 — 상단 네비로 station 전환
+npm run gen:glb     # manifold → gltf-transform → public/models/building.glb
+npm run dev         # http://localhost:5173 — switch stations from the top nav
 ```
 
-`#02-gltf`는 먼저 `npm run gen:glb`를 돌려야 모델이 보인다.
+`#02-gltf` needs `npm run gen:glb` first, or it has no model to load.
 
 ```bash
-npm run build       # tsc 타입체크 + vite 프로덕션 빌드
-npm run optimize    # (station 08) gltf-transform으로 DamagedHelmet 압축 + 용량 비교
-npx gltf-transform inspect public/models/building.glb   # (보너스) 생성물 메타 확인
+npm run build       # tsc typecheck + vite production build
+npm run optimize    # (station 08) compress DamagedHelmet with gltf-transform + size report
+npx gltf-transform inspect public/models/building.glb   # (bonus) inspect the generated asset
 ```
 
-## 구조
+## Structure
 
 ```
-scripts/build-glb.ts   # [station 02 생성기] Node에서 manifold → .glb
+scripts/build-glb.ts   # [station 02 generator] manifold → .glb in Node
 src/
-  main.ts              # hash 라우터 (station 동적 import + cleanup)
+  main.ts              # hash router (dynamic station import + cleanup)
   lib/
-    viewer.ts          # 공통 three.js 부트스트랩 (scene/camera/renderer/controls/loop)
-    manifold.ts        # WASM 초기화 + manifold → BufferGeometry 변환
-    building.ts        # 공유 절차적 geometry 로직
-  stations/*.ts        # 각 모듈은 mount(container) => cleanup 규약
+    viewer.ts          # shared three.js bootstrap (scene/camera/renderer/controls/loop)
+    manifold.ts        # WASM init + manifold → BufferGeometry conversion
+    building.ts        # shared procedural geometry logic
+  stations/*.ts        # each module follows the mount(container) => cleanup contract
 ```
 
-## 메모
+## Notes
 
-- `manifold-3d`는 WASM이라 Vite `optimizeDeps.exclude` + `manifold.wasm?url` + `locateFile` 패턴으로 로드 (`src/lib/manifold.ts`, `vite.config.ts` 참고). Node에선 locateFile 불필요.
+- `manifold-3d` is WASM, so it's loaded via the Vite `optimizeDeps.exclude` + `manifold.wasm?url` + `locateFile` pattern (see `src/lib/manifold.ts`, `vite.config.ts`). In Node, `locateFile` isn't needed.
