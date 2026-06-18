@@ -3,6 +3,8 @@
 A hands-on playground for learning the core concepts behind a 3D motion framework
 **by touching the code directly**. One Vite app; stations switch via the URL hash.
 
+*A personal study / portfolio project — a learning lab, not a maintained open-source library.*
+
 **▶ Live demo: https://kiyeonjeon21.github.io/stereo-lab/** — 15 interactive stations, no install.
 
 <p align="center">
@@ -15,6 +17,11 @@ A hands-on playground for learning the core concepts behind a 3D motion framewor
   <img src="docs/screenshots/13-glass.png" width="32%" alt="glass / transmission material" />
 </p>
 <p align="center"><sub>PBR · walkable map · morph flock · SDF raymarching · bloom · glass</sub></p>
+
+**Built with** three.js · TypeScript · Vite — plus manifold-3d (CAD kernel), gltf-transform,
+Rapier (physics), Theatre.js (motion), three-mesh-bvh, and React Three Fiber. Each station is
+one self-contained reading of a concept, paired with a code-grounded explanation in
+[WALKTHROUGH.md](./WALKTHROUGH.md).
 
 ## Stations
 
@@ -81,3 +88,16 @@ src/
 ## Notes
 
 - `manifold-3d` is WASM, so it's loaded via the Vite `optimizeDeps.exclude` + `manifold.wasm?url` + `locateFile` pattern (see `src/lib/manifold.ts`, `vite.config.ts`). In Node, `locateFile` isn't needed.
+
+## Credits
+
+3D models are sample assets from the [three.js examples](https://github.com/mrdoob/three.js/tree/dev/examples/models/gltf)
+and the [Khronos glTF Sample Assets](https://github.com/KhronosGroup/glTF-Sample-Assets)
+(DamagedHelmet, Soldier, collision-world, DispersionTest, Flamingo/Parrot/Stork) — see those
+repos for individual licenses/authors. All lab code is original.
+
+## License & use
+
+This is a personal learning/portfolio repo, shared so the code is readable and the demo is
+playable. It's not packaged for reuse and isn't accepting contributions. Feel free to read,
+run, and learn from it; the bundled third-party models keep their original licenses (see Credits).
