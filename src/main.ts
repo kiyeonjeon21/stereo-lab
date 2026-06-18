@@ -13,6 +13,7 @@ const STATIONS: { id: string; label: string; load: () => Promise<{ mount: MountF
   { id: '06-pbr', label: '06 · pbr', load: () => import('./stations/06-pbr') },
   { id: '07-animation', label: '07 · animation', load: () => import('./stations/07-animation') },
   { id: '08-performance', label: '08 · performance', load: () => import('./stations/08-performance') },
+  { id: '09-r3f', label: '09 · r3f', load: () => import('./stations/09-r3f') },
 ];
 
 const app = document.getElementById('app') as HTMLElement;
